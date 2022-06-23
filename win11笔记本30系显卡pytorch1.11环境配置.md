@@ -6,11 +6,11 @@
 
 1. 从官网下载：[Anaconda | The World's Most Popular Data Science Platform](https://www.anaconda.com/)
 
-2. 安装时注意勾选环境变量（但我这里选项是灰的点不了，只能后面再添加不知道为啥）<img src="../image\image-20220623221456927.png" alt="image-20220623221456927" style="zoom:50%;" />
+2. 安装时注意勾选环境变量（但我这里选项是灰的点不了，只能后面再添加不知道为啥）<img src="./image\image-20220623221456927.png" alt="image-20220623221456927" style="zoom:50%;" />
 
 3. 若没有加到环境变量则手动添加
 
-   在电脑中搜索环境变量，打开下面的path选项，添加3个相应的安装路径<img src="../image\image-20220623222130296.png" alt="image-20220623222130296" style="zoom:50%;" />
+   在电脑中搜索环境变量，打开下面的path选项，添加3个相应的安装路径<img src="./image\image-20220623222130296.png" alt="image-20220623222130296" style="zoom:50%;" />
 
 4. 换pip源：在用户下的个人文件下创建pip.txt，添加如下文字后再改为ini文件
 
@@ -44,7 +44,7 @@ PyTorch官网：https://pytorch.org/
 
 1. 检查cuda和驱动版本
 
-   在命令行输入`nvidia-smi`指令就能看到自己nvidia的驱动版本（前提是电脑上有装nvidia的驱动）<img src="../image\image-20220623224704860.png" alt="image-20220623224704860" style="zoom: 67%;" />
+   在命令行输入`nvidia-smi`指令就能看到自己nvidia的驱动版本（前提是电脑上有装nvidia的驱动）<img src="./image\image-20220623224704860.png" alt="image-20220623224704860" style="zoom: 67%;" />
 
    然后在NVIDIA官网，看下CUDA版本以及GPU驱动的对应关系：https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
 
@@ -52,7 +52,7 @@ PyTorch官网：https://pytorch.org/
 
    2. 安装pytorch
 
-      <img src="../image\image-20220623224942797.png" alt="image-20220623224942797" style="zoom:67%;" />
+      <img src="./image\image-20220623224942797.png" alt="image-20220623224942797" style="zoom:67%;" />
 
       在对应虚拟环境中安装。注意的是网上说要把-c pytorch删掉才可以从清华源安装。但我这里提示`torchvision` 和`torchaudio`找不到。所以我直接按照要求安装没有删除，速度意外不慢。
 
