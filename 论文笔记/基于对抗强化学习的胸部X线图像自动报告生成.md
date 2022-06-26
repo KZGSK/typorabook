@@ -22,3 +22,5 @@ Automatic Report Generation for Chest X-Ray Images via Adversarial Reinforcement
 （2） 自然图像标题大多只有一句话，而搜索结果包含四句、五句甚至更多的句子，因此基本解码器可能很难了解这种长期依赖关系；
 
 （3）对于医疗报告的生成，应将诊断准确性放在首位，而不是盲目追求高文本相关性分数（如BLEU分数）。
+
+![image-20220626120017998](../image/image-20220626120017998.png)
