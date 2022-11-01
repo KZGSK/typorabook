@@ -23,3 +23,11 @@ A contrastive triplet network for automatic chest X-ray reporting
 ![image-20221101151131954](../image/image-20221101151131954.png)
 
 对比学习：
+
+![image-20221101153509097](../image/image-20221101153509097.png)
+
+ep,ea,en 是正例、锚例和负例的视觉嵌入
+
+sp 和 sn 是真实的正面和负面报告的语义嵌入
+
+![image-20221101153630799](../image/image-20221101153630799.png)
