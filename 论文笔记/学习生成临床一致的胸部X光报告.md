@@ -16,7 +16,7 @@ Learning to Generate Clinically Coherent Chest X-Ray Reports
 
 ## 模型结构
 
-<img src="C:\Users\zhaoguosheng\AppData\Roaming\Typora\typora-user-images\image-20220705102810969.png" alt="image-20220705102810969" style="zoom:67%;" />
+![image-20221101152559843](../image/image-20221101152559843.png)
 
 论文开发了一个由两个阶段组成的端到端报告生成框架。第一阶段是使用标准语言目标训练的报告生成模型。在第二阶段，从模型中对一份报告进行差异采样，并从该报告中提取临床观察结果。
 
