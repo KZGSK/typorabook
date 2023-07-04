@@ -28,7 +28,7 @@ report里有indication comparison findings impression四种种信息。这里说
 
 图像通过CNN编码，history通过transformer的encode编码，编码信息经过某种融合得到D_fused.
 
-分类步骤：他初始了一个embedding层，以及一个随机矩阵，随机矩阵state_index送入embedding层得到state_embed。其中state_index的目的是提供一个分类项，每次都随机，无意义。有意义的是embedding层的参数（embedding层就是给矩阵？）。得到的state_embed融合了embedding层学习的信息。D_fused与state_embed进行注意力（其实就是矩阵相乘），得到注意力机制编码结果用来做分类。将分类的结果再次进入这个embedding层得到D_state.(图中S就是embedding层)
+分类步骤：他初始了一个embedding层，以及一个随机矩阵，随机矩阵state_index送入embedding层得到state_embed。其中state_index的目的是提供一个分类项，每次都随机，无意义。有意义的是embedding层的参数（embedding层就是矩阵）。得到的state_embed融合了embedding层学习的信息。D_fused与state_embed进行注意力（其实就是矩阵相乘），得到注意力机制编码结果用来做分类。将分类的结果再次进入这个embedding层得到D_state.(图中S就是embedding层)
 
 <img src="../image/image-20220716220652928.png" alt="image-20220716220652928" style="zoom:50%;" />
 

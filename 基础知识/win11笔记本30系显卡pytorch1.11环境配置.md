@@ -72,7 +72,6 @@ PyTorch官网：https://pytorch.org/
       torch.cuda.is_available()
       ```
 
-   
    # 安装pycharm
    
    参考：[Pycharm专业版2022.3.3安装激活 (qq.com)](https://mp.weixin.qq.com/s?__biz=MzIyMjYzMDMyMQ==&mid=2247486104&idx=1&sn=2c3ce4ac12c79c8b6f2ca9fb50031706&chksm=e82bd246df5c5b509dff0806ca8b9b8e80adb38a9e279dd57d35b42405d6ba37915c592bda93&mpshare=1&scene=23&srcid=0623vvLrJyR0kBYWz6loD0md&sharer_sharetime=1655996489703&sharer_shareid=a30ff933acc1ad487e9413d63254b95a#rd)
