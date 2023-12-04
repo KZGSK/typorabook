@@ -39,8 +39,6 @@ drop database if exit database_test;
 use database_test; 
 ```
 
-
-
 #### 表操作
 
 ```mysql
@@ -532,7 +530,7 @@ undo log 有两种类型
 
 insert undo log ：insert操作阐释的日志，只对事务本身可见，这种类型的日志在事务提交后可以直接删除。
 
-update undo log: 记录对delete 、uodate的操作，这可能需要提供MVCC，不能再事务提交时就删除，通过后台purge线程进行回收处理的
+update undo log: 记录对delete 、update的操作，这可能需要提供MVCC，不能再事务提交时就删除，通过后台purge线程进行回收处理的
 
 ### 锁
 
