@@ -590,7 +590,10 @@ logger.log(Level.FINE, message)//以FINE级别记录
 
 泛型的本质是参数化类型，也就是说所操作的数据类型被指定为一个参数。
 
+泛型有三种：**泛型类**、**泛型接口**、**泛型方法**。
+
 ```java
+//泛型类
 public class Pair<T>{
     private T first;
     private T second;
@@ -601,6 +604,7 @@ public class Pair<T>{
     public static <T> T getMiddle(T...a){
         return a[a.length/2];
     }
+    //泛型方法
     public static <T extends Comparable>T min(T[]a){//<T extends BoundingType>
         if (a =null a.length ==0)return null;
         T smallest a[0];
@@ -610,6 +614,17 @@ public class Pair<T>{
     }
 }
 String middle = Pair.<String>getMiddle("john","Q.","public");
+//泛型接口
+public interface Generator<T> {
+    public T method();
+}
+//泛型方法
+public static < E > void printArray( E[] inputArray ){
+    for ( E element : inputArray ){
+        System.out.printf( "%s ", element );
+    }
+}
+
 ```
 
 Pair类引入了类型变量T，指定方法的返回类型和字段以及局部变量的类型。一般来说，E表示集合的元素类型，K,V表示表的键值，T(必要是也可U,S)表示任意类型。
@@ -668,7 +683,7 @@ List接口实现类：有序、可重复、有索引
 
 ![image-20231016172233837](../image/image-20231016172233837.png)
 
- 红黑规则：每一个节点都是红/黑的。根节点是黑的。若一个节点没有子节点或者父节点，几点的相应指针属性值为Nil，Nil为叶节点每个叶节点都是黑的。不能出现红节点相连。从任意一个节点都其后代叶节点的简单路径上，有相同数目的黑节点。
+ 红黑规则：每一个节点都是红/黑的。根节点是黑的。若一个节点没有子节点或者父节点，几点的相应指针属性值为Nil，Nil为叶节点每个叶节点都是黑的。不能出现红节点相连。从任意一个节点到其后代叶节点的简单路径上，有相同数目的黑节点。
 
 ![image-20231016173107563](../image/image-20231016173107563.png)
 
@@ -726,9 +741,16 @@ LinkedHashMap继承HashMap类，只不过是有序的。有序是通过双向链
 
 Stream 处理数据的过程可以类别成工厂的流水线。数据可以看做流水线上的原料，对数据的操作可以看做流水线上的工人对原料的操作。
 
+Stream相较于传统的foreach的方式处理stream，到底有啥优势？
+
+代码更简洁、 逻辑间解耦，一个stream中间处理逻辑，无需关注上游与下游的内容，只需要按约定实现自身逻辑即可、并行流场景效率会比迭代器逐个循环更高 、函数式接口，延迟执行的特性，中间管道操作不管有多少步骤都不会立即执行，只有遇到终止操作的时候才会开始执行，可以避免一些中间不必要的操作消耗
+
 Stream 常用的流操作包括：
 
 中间操作：
+
+map或者filter会从输入流中获取每一个元素，并且在输出流中得到一个结果，这些操作没有内部状态，**称为无状态操作**。
+但是像reduce、sum、max这些操作都需要内部状态来累计计算结果，所以**称为有状态操作。**
 
 无状态（Stateless）操作：每个数据的处理是独立的，不会影响或依赖之前的数据。`filter()`、`flatMap()`、`flatMapToDouble()`、`flatMapToInt()`、`flatMapToLong()`、`map()`、`mapToDouble()`、`mapToInt()`、`mapToLong()`、`peek()`、`unordered()` 等。
 
@@ -822,9 +844,7 @@ public void write(byte[] w)
 
 
 
-
-
- ## 多线程
+## 多线程
 
 线程是操作系统能够进行运算调度的最小单位，被包含在进程之中。
 
@@ -896,6 +916,8 @@ synchronized在方法前加上，变成同步方法，同步方法会锁住方�
 
 Java反射就是在运行状态中，对于任意一个类，都能够知道这个类的所有属性和方法；对于任意一个对象，都能够调用它的任意方法和属性；并且能改变它的属性。
 
+原理：Java在编译之后会生成一个**class文件**，反射通过**字节码文件**找到其类中的方法和属性等
+
 ```java
 //得到 Class 的三种方式
 //通过对象调用 getClass() 方法来获取
@@ -934,6 +956,10 @@ f2.set(p2,"Bob");
 一个类在 JVM 中只会有一个 Class 实例,即我们对上面获取的 c1,c2,c3进行 equals 比较，发现都是true
 
 通过 Class 类获取成员变量、成员方法、接口、超类、构造方法等
+
+优点：反射机制极大的提高了程序的灵活性和扩展性，降低模块的耦合性，提高自身的适应能力。
+
+缺点：反射需要在运行时通过类型信息来动态检查对象的类型，这比编译时的静态类型检查要慢。jvm无法对这些代码优化，性能低；反射破坏了封装性和泛型的约束性，增加了不安全的风险。
 
 **注解**
 
