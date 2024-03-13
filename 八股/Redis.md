@@ -33,6 +33,8 @@ Redis 与 Memcached **区别**：
 
 常见的有五种：**String（字符串），Hash（哈希），List（列表），Set（集合）、Zset（有序集合）**。后面又支持了四种数据类型： **BitMap（2.2 版新增）、HyperLogLog（2.8 版新增）、GEO（3.2 版新增）、Stream（5.0 版新增）**。
 
+Redis是一个键值对数据库，键空间的键就是数据库的键，每个键都是一个字符串对象；键空间的值就是数据库的值，可以是任意一种redis对象
+
 ### String
 
 最基本的 key-value 结构，value其实不仅是字符串， 也可以是数字（整数或浮点数）
@@ -41,9 +43,42 @@ Redis 与 Memcached **区别**：
 
 ![image-20231129090659815](../image/image-20231129090659815.png)
 
-字符串对象的内部编码（encoding）有 3 种 ：**int、raw和 embstr**。embstr小字符串，通过一次内存分配函数来分配一块连续的内存空间来保存。raw大字符串，调用两次内存分配函数来分别分配两块空间来保存。
+字符串对象的内部编码（encoding）有 3 种 ：**int、raw和 embstr**。embstr小字符串，通过一次内存分配函数来分配一块连续的内存空间来保存。raw大字符串，调用两次内存分配函数来分别分配两块空间来保存。整形数据保存在ptr里面。
 
 应用场景：缓存对象，计数，分布式锁(SET 命令有个 NX 参数可以实现「key不存在才插入」，可以用它来实现分布式锁)，共享Session信息.
+
+~~~java
+//设置 key-value 类型的值
+set name lin
+//根据 key 获得对应的 value
+get name
+//判断某个 key 是否存在
+exists name
+//返回 key 所储存的字符串值的长度
+strlen name
+//删除某个 key 对应的值
+del name
+//批量设置 key-value 类型的值
+mset key1 value1 key2 value2 
+//批量获取多个 key 对应的 value
+mget key1 key2 
+//设置 key-value 类型的值
+set number 0
+//将 key 中储存的数字值增一
+incr number
+//将key中存储的数字值加 10
+incrby number 10
+//将 key 中储存的数字值减一
+decr number
+//将key中存储的数字值键 10
+decrby number 10
+//设置 key 在 60 秒后过期（该方法是针对已经存在的key设置过期时间）
+expire name  60 
+//查看数据还有多久过期
+ttl name 
+//设置 key-value 类型的值，并设置该key的过期时间为 60 秒
+set key  value ex 60
+~~~
 
 ### List
 
@@ -54,7 +89,44 @@ List 列表是简单的字符串列表，**按照插入顺序排序**，可以�
 - 如果列表的元素个数小于 `512` 个，列表每个元素的值都小于 `64` 字节，Redis 会使用**压缩列表**作为 List 类型的底层数据结构；
 - 如果列表的元素不满足上面的条件，Redis 会使用**双向链表**作为 List 类型的底层数据结构；
 
+压缩列表
+
+它被设计成一种内存紧凑型的数据结构，占用一块连续的内存空间，不仅可以利用 CPU 缓存，而且会针对不同长度的数据，进行相应编码，这种方法可以有效地节省内存开销。
+
+![image-20240229100225332](../image/image-20240229100225332.png)
+
+- ***zlbytes***，记录整个压缩列表占用对内存字节数；
+- ***zltail***，记录压缩列表「尾部」节点距离起始地址由多少字节，也就是列表尾的偏移量；
+- ***zllen***，记录压缩列表包含的节点数量；
+- ***zlend***，标记压缩列表的结束点，固定值 0xFF（十进制255）。
+- ***prevlen***，记录了「前一个节点」的长度，目的是为了实现从后向前遍历；
+- ***encoding***，记录了当前节点实际数据的「类型和长度」，类型主要有两种：字符串和整数。
+- ***data***，记录了当前节点的实际数据，类型和长度都由 `encoding` 决定；
+
+压缩列表新增某个元素或修改某个元素时，如果空间不不够，压缩列表占用的内存空间就需要重新分配。而当新插入的元素较大时，可能会导致后续元素的 prevlen 占用空间都发生变化，从而引起「连锁更新」问题，导致每个元素的空间都要重新分配，造成访问压缩列表性能的下降。因此，**压缩列表只会用于保存的节点数量不多的场景**，只要节点数量足够小，即使发生连锁更新，也是能接受的。
+
+在后来的版本中，新增设计了两种数据结构：quicklist（Redis 3.2 引入） 和 listpack（Redis 5.0 引入）。这两种数据结构的设计目标，就是尽可能地保持压缩列表节省内存的优势，同时解决压缩列表的「连锁更新」的问题。
+
 应用场景：消息队列
+
+```java
+//将一个或多个值value插入到key列表的表头(最左边)，最后的值在最前面
+lpush key value [value ...] 
+//将一个或多个值value插入到key列表的表尾(最右边)
+rpush key value [value ...]
+//移除并返回key列表的头元素
+lpop key     
+//移除并返回key列表的尾元素
+rpop key 
+//返回列表key中指定区间内的元素，区间以偏移量start和stop指定，从0开始
+lrange key start stop
+//从key列表表头弹出一个元素，没有就阻塞timeout秒，如果timeout=0则一直阻塞
+blpop key [key ...] timeout
+//从key列表表尾弹出一个元素，没有就阻塞timeout秒，如果timeout=0则一直阻塞
+brpop key [key ...] timeout
+```
+
+
 
 ### Hash
 
@@ -65,6 +137,43 @@ Hash 类型的底层数据结构是由**压缩列表或哈希表**实现的：
 - 如果哈希类型元素个数小于 `512` 个，所有值小于 `64` 字节的话，Redis 会使用**压缩列表**作为 Hash 类型的底层数据结构；
 - 如果哈希类型元素不满足上面条件，Redis 会使用**哈希表**作为 Hash 类型的 底层数据结构。
 
+**Redis 采用了「链式哈希」来解决哈希冲突**，在不扩容哈希表的前提下，将具有相同哈希值的数据串起来，形成链接起，以便这些数据在表中仍然可以被查询到。
+
+链式哈希局限性也很明显，随着链表长度的增加，在查询这一位置上的数据的耗时就会增加，此时需要进行 rehash，也就是对哈希表的大小进行扩展。
+
+rehash需要两个哈希表，给「哈希表 2」 分配空间，一般会比「哈希表 1」 大一倍（两倍的意思）；将「哈希表 1 」的数据迁移到「哈希表 2」 中；迁移完成后，「哈希表 1 」的空间会被释放，并把「哈希表 2」 设置为「哈希表 1」，然后在「哈希表 2」 新创建一个空白的哈希表，为下次 rehash 做准备。
+
+在 rehash 进行期间，每次哈希表元素进行新增、删除、查找或者更新操作时，Redis 除了会执行对应的操作之外，还会顺序将「哈希表 1 」中索引位置上的所有 key-value 迁移到「哈希表 2」上；
+
+rehash 的触发条件跟**负载因子（load factor）**有关系。负载因子=已保存的节点数量/哈希表大小。
+
+- 当负载因子大于等于 1 ，并且 Redis 没有执行 RDB 快照或没有进行 AOF 重写的时候，就会进行 rehash 操作。
+- 当负载因子大于等于 5 时，此时说明哈希冲突非常严重了，不管有没有有在执行 RDB 快照或 AOF 重写，都会强制进行 rehash 操作。
+
+~~~java
+//存储一个哈希表key的键值
+hset key field value   
+//获取哈希表key对应的field键值
+hget key field
+
+//在一个哈希表key中存储多个键值对
+hmset key field value [field value...] 
+//批量获取哈希表key中多个field键值
+hmget key field [field ...]       
+//删除哈希表key中的field键值
+hdel key field [field ...]    
+
+//返回哈希表key中field的数量
+hlen key       
+//返回哈希表key中所有的键值
+hgetall key 
+
+//为哈希表key中field键的值加上增量n
+hincrby key field n   
+~~~
+
+
+
 ### Set
 
 Set 类型是一个无序并唯一的键值集合，它的存储顺序不会按照插入的先后顺序进行存储。
@@ -74,6 +183,31 @@ Set 类型的底层数据结构是由**哈希表或整数集合**实现的：
 - 如果集合中的元素都是整数且元素个数小于 `512` 个，Redis 会使用**整数集合**作为 Set 类型的底层数据结构；
 - 如果集合中的元素不满足上面条件，则 Redis 使用**哈希表**作为 Set 类型的底层数据结构。
 
+整数集合
+
+整数集合本质上是一块连续内存空间，由编码方式encoding、集合元素数量length、保存元素数组contents[]组成。
+
+整数集合会有一个升级规则，就是当我们将一个新元素加入到整数集合里面，如果新元素的类型（int32_t）比整数集合现有所有元素的类型（int16_t）都要长时，整数集合需要先进行升级，也就是按新元素的类型（int32_t）扩展 contents 数组的空间大小，然后才能将新元素加入到整数集合里，当然升级的过程中，也要维持整数集合的有序性。不支持降级。
+
+ Set 类型比较适合用来数据去重和保障数据的唯一性，还可以用来统计多个集合的交集、错集和并集等，当我们存储的数据是无序并且需要去重的情况下，比较适合使用集合类型进行存储。
+
+~~~java
+//往集合key中存入元素，元素存在则忽略，若key不存在则新建
+sadd key member [member ...]
+//从集合key中删除元素
+srem key member [member ...] 
+//获取集合key中所有元素
+smembers key
+//获取集合key中的元素个数
+scard key
+//判断member元素是否存在于集合key中
+sismember key member
+//从集合key中随机选出count个元素，元素不从key中删除
+srandmember key [count]
+//从集合key中随机选出count个元素，元素从key中删除
+spop key [count]
+~~~
+
 ###Zset
 
 Zset 类型（有序集合类型）相比于 Set 类型多了一个排序属性 score（分值），对于有序集合 ZSet 来说，每个存储元素相当于有两个值组成的，一个是有序集合的元素值，一个是排序值。
@@ -82,6 +216,89 @@ Zset 类型的底层数据结构是由**压缩列表或跳表**实现的：
 
 - 如果有序集合的元素个数小于 `128` 个，并且每个元素的值小于 `64` 字节时，Redis 会使用**压缩列表**作为 Zset 类型的底层数据结构；
 - 如果有序集合的元素不满足上面的条件，Redis 会使用**跳表**作为 Zset 类型的底层数据结构；
+
+跳表
+
+跳表的优势是能支持平均 O(logN) 复杂度的节点查找。zset 结构体里有两个数据结构：一个是跳表，一个是哈希表。这样的好处是既能进行高效的范围查询，也能进行高效单点查询。**跳表是在链表基础上改进过来的，实现了一种「多层」的有序链表**，这样的好处是能快读定位数据。
+
+跳跃表的每一层都是一条有序的链表。维护了多条节点路径。最底层的链表包含所有元素。
+
+~~~JAVA
+typedef struct zskiplist {
+    struct zskiplistNode *header, *tail;
+    unsigned long length;
+    int level;
+} zskipl
+    
+typedef struct zskiplistNode {
+    //Zset 对象的元素值
+    sds ele;
+    //元素权重值
+    double score;
+    //后向指针
+    struct zskiplistNode *backward;
+  
+    //节点的level数组，保存每层上的前向指针和跨度
+    struct zskiplistLevel {
+        struct zskiplistNode *forward;
+        unsigned long span;
+    } level[];
+} zskiplis
+~~~
+
+
+
+![image-20240229102638565](../image/image-20240229102638565.png)
+
+查询
+
+查找一个跳表节点的过程时，跳表会从头节点的最高层开始，逐一遍历每一层。在遍历某一层的跳表节点时，会用跳表节点中的 SDS 类型的元素和元素的权重来进行判断，共有两个判断条件：
+
+- 如果当前节点的权重「小于」要查找的权重时，跳表就会访问该层上的下一个节点。
+- 如果当前节点的权重「等于」要查找的权重时，并且当前节点的 SDS 类型数据「小于」要查找的数据时，跳表就会访问该层上的下一个节点。
+
+如果上面两个条件都不满足，或者下一个节点为空时，跳表就会使用目前遍历到的节点的 level 数组里的下一层指针，然后沿着下一层指针继续查找，这就相当于跳到了下一层接着查找。
+
+跳表的相邻两层的节点数量的比例会影响跳表的查询性能。**跳表的相邻两层的节点数量最理想的比例是 2:1，查找复杂度可以降低到 O(logN)**。
+
+在添加元素时，依据查询的方式找到要插入的位置进行链表的插入工作，此时也会考虑层级，会生成范围为[0-1]的一个随机数，如果这个随机数小于 0.25（相当于概率 25%），那么层数就增加 1 层，然后继续生成下一个随机数，直到随机数的结果大于 0.25 结束，最终确定该节点的层数。
+
+在面对需要展示最新列表、排行榜等场景时，如果数据更新频繁或者需要分页显示，可以优先考虑使用 Sorted Set。
+
+**为什么 Zset 的实现用跳表而不用平衡树（如 AVL树、红黑树等）？**
+
+- **从内存占用上来比较，跳表比平衡树更灵活一些**。平衡树每个节点包含 2 个指针（分别指向左右子树），而跳表每个节点包含的指针数目平均为 1/(1-p)，具体取决于参数 p 的大小。如果像 Redis里的实现一样，取 p=1/4，那么平均每个节点包含 1.33 个指针，比平衡树更有优势。
+- **在做范围查找的时候，跳表比平衡树操作要简单**。在平衡树上，我们找到指定范围的小值之后，还需要以中序遍历的顺序继续寻找其它不超过大值的节点。如果不对平衡树进行一定的改造，这里的中序遍历并不容易实现。而在跳表上进行范围查找就非常简单，只需要在找到小值之后，对第 1 层链表进行若干步的遍历就可以实现。
+- **从算法实现难度上来比较，跳表比平衡树要简单得多**。平衡树的插入和删除操作可能引发子树的调整，逻辑复杂，而跳表的插入和删除只需要修改相邻节点的指针，操作简单又快速
+
+~~~JAVA
+//往有序集合key中加入带分值元素
+zadd key score member [[score member]...]   
+//往有序集合key中删除元素
+zrem key member [member...]                 
+//返回有序集合key中元素member的分值
+zscore key member
+//返回有序集合key中元素个数
+zcard key 
+//为有序集合key中元素member的分值加上increment
+zincrby key increment member 
+//正序获取有序集合key从start下标到stop下标的元素
+zrange key start stop [withscores]
+//倒序获取有序集合key从start下标到stop下标的元素
+zrevrange key start stop [withscores]
+//返回有序集合中指定分数区间内的成员，分数由低到高排序。
+zrangebyscore key min max [withscores] [limit offset count]
+//返回指定成员区间内的成员，按字典正序排列, 分数必须相同。
+zrangebylex key min max [limit offset count]
+//返回指定成员区间内的成员，按字典倒序排列, 分数必须相同
+zrevrangebylex key max min [limit offset count]
+~~~
+
+**quicklist**
+
+其实 quicklist 就是「双向链表 + 压缩列表」组合，因为一个 quicklist 就是一个链表，而链表中的每个元素又是一个压缩列表。虽然压缩列表是通过紧凑型的内存布局节省了内存开销，但是因为它的结构设计，如果保存的元素数量增加，或者元素变大了，压缩列表会有「连锁更新」的风险，一旦发生，会造成性能下降。quicklist 解决办法，**通过控制每个链表节点中的压缩列表的大小或者元素个数，来规避连锁更新的问题。因为压缩列表元素越少或越小，连锁更新带来的影响就越小，从而提供了更好的访问性能。**
+
+listpack 中每个节点不再包含前一个节点的长度了，从结构上避免了连锁更新。
 
 ### BitMap
 
@@ -109,7 +326,7 @@ Redis 专门为消息队列设计的数据类型。它支持消息的持久化�
 
 Redis 6.0 之前为什么使用单线程，以后使用多线程。
 
-**Redis 程序并不是单线程的**，Redis 在启动的时候，是会**启动后台线程**（BIO）的。Redis 主要3个后台线程来完成「关闭文件、AOF 刷盘、释放内存」。因为这些任务的操作都是很耗时的，如果把这些任务都放在主线程来处理，那么 Redis 主线程就很容易发生阻塞。
+**Redis 程序并不是单线程的**，Redis 在启动的时候，是会**启动后台线程**（BIO）的。Redis 主要3个后台线程来完成「关闭文件、AOF 刷盘、释放内存」。因为这些任务的操作都是很耗时的，如果把这些任务都放在主线程来处理，那么 Redis 主线程就很容易发生阻塞。后台线程相当于一个消费者，生产者把耗时任务丢到任务队列中，消费者（BIO）不停轮询这个队列，拿出任务就去执行对应的方法即可。
 
 - BIO_CLOSE_FILE，关闭文件任务队列：当队列有任务后，后台线程会调用 close(fd) ，将文件关闭；
 - BIO_AOF_FSYNC，AOF刷盘任务队列：当 AOF 日志配置成 everysec 选项后，主线程会把 AOF 写日志操作封装成一个任务，也放到队列中。当发现队列有任务后，后台线程会调用 fsync(fd)，将 AOF 文件刷盘，
@@ -132,6 +349,10 @@ Redis 初始化的时候，会做下面这几件事情：
 - Redis 的大部分操作**都在内存中完成**，并且采用了高效的数据结构，因此 Redis 瓶颈可能是机器的内存或者网络带宽，而并非 CPU，既然 CPU 不是瓶颈，那么自然就采用单线程的解决方案了；
 - Redis 采用单线程模型可以**避免了多线程之间的竞争**，省去了多线程切换带来的时间和性能上的开销，而且也不会导致死锁问题。
 - Redis 采用了 **I/O 多路复用机制**处理大量的客户端 Socket 请求，IO 多路复用机制是指一个线程处理多个 IO 流，就是我们经常听到的 select/epoll 机制。简单来说，在 Redis 只运行单线程的情况下，该机制允许内核中，同时存在多个监听 Socket 和已连接 Socket。内核会一直监听这些 Socket 上的连接请求或数据请求。一旦有请求到达，就会交给 Redis 线程处理，这就实现了一个 Redis 线程处理多个 IO 流的效果。
+
+为什么又引入多线程
+
+Redis在处理网络数据时，调用epoll的过程是阻塞的，也就是说这个过程会阻塞线程，如果并发量很高，达到几万的QPS，此处可能会成为瓶颈。一般我们遇到此类网络IO瓶颈的问题，可以增加线程数来解决。开启多线程除了可以减少由于网络I/O等待造成的影响，还可以充分利用CPU的多核优势。Redis6.0也不例外，在此处增加了多线程来处理网络数据，以此来提高Redis的吞吐量。当然相关的命令处理还是单线程运行，不存在多线程下并发访问带来的种种问题。
 
 ## 持久化
 
@@ -200,6 +421,10 @@ Redis 在使用 bgsave 快照过程中，如果主线程修改了内存数据，
 
 保证主从节点间的网络连接状况良好。开发一个外部程序来监控主从节点间的复制进度。用 INFO replication 命令查到主、从节点的进度，然后，我们用 master_repl_offset 减去 slave_repl_offset，得到从节点和主节点间的复制进度差。若大于我们预设的阈值，可以禁止读取
 
+master_repl_offset是复制流中的一个偏移量，master处理完写入命令后，会把命令的字节长度做累加记录，统计在该字段。该字段也是实现部分复制的关键字段。
+
+slave_repl_offset同样也是一个偏移量，从节点收到主节点发送的命令后，累加自身的偏移量，通过比较主从节点的复制偏移量可以判断主从节点数据是否一致。
+
 **第一次同步**
 
 使用 `replicaof`命令形成主服务器和从服务器的关系。第一次同步的过程可分为三个阶段：
@@ -218,6 +443,8 @@ Redis 在使用 bgsave 快照过程中，如果主线程修改了内存数据，
 
 从服务器可以有自己的从服务器，分摊主服务器的压力。
 
+![image-20240229170933611](../image/image-20240229170933611.png)
+
 **增量复制**
 
 主从服务器在命令同步时出现了网络断开又恢复的情况,TCP 长连接断开后，数据不一致。为了解决全量复制开销大的问题，使用增量复制的方式，只会把网络断开期间主服务器接收到的写操作命令，同步给从服务器。
@@ -227,6 +454,8 @@ Redis 在使用 bgsave 快照过程中，如果主线程修改了内存数据，
 - 然后主服务将主从服务器断线期间，所执行的写命令发送给从服务器，然后从服务器执行这些命令。
 
 网络断开后，当从服务器重新连上主服务器时，从服务器会通过 psync 命令将自己的复制偏移量 slave_repl_offset 发送给主服务器，主服务器根据自己的 master_repl_offset 和 slave_repl_offset 之间的差距，然后来决定对从服务器执行哪种同步操作，判断出从服务器要读取的数据还在 repl_backlog_buffer 缓冲区里，那么主服务器将采用**增量同步**的方式；
+
+**repl_backlog_buffer**，是一个「**环形**」缓冲区，用于主从服务器断连后，从中找到差异的数据；在主服务器进行命令传播时，不仅会将写命令发送给从服务器，还会将写命令写入到 repl_backlog_buffer 缓冲区里，因此 这个缓冲区里会保存着最近传播的写命令。
 
 Redis 判断节点是否正常工作，基本都是通过互相的 ping-pong 心态检测机制，如果有一半以上的节点去 ping 一个节点的时候没有 pong 回应，集群就会认为这个节点挂掉了，会断开与这个节点的连接
 
@@ -245,7 +474,7 @@ Redis 判断节点是否正常工作，基本都是通过互相的 ping-pong 心
 
 **异步复制同步丢失**
 
-主节点还没来得及同步给从节点时发生了断电，那么主节点内存中的数据会丢失。可以配置min-slaves-max-lag。如果数据同步完成所需要时间超过设定值拒绝新写入请求。
+主节点还没来得及同步给从节点时发生了断电，那么主节点内存中的数据会丢失。可以配置min-slaves-max-lag。如果数据同步完成所需要时间超过设定值，主节点会拒绝新写入请求。
 
 **集群产生脑裂数据丢失**
 
@@ -352,7 +581,7 @@ Redis 故障宕机
 
 ###缓存击穿
 
-被频地访问的数据被称为热点数据。缓存中的**某个热点数据过期**了，此时大量的请求访问了该热点数据，就无法从缓存中读取，直接访问数据库，数据库很容易就被高并发的请求冲垮，这就是**缓存击穿**的问题。缓存击穿是缓存雪崩的一个子集。 
+被频繁地访问的数据被称为热点数据。缓存中的**某个热点数据过期**了，此时大量的请求访问了该热点数据，就无法从缓存中读取，直接访问数据库，数据库很容易就被高并发的请求冲垮，这就是**缓存击穿**的问题。缓存击穿是缓存雪崩的一个子集。 
 
 **方案解决**
 
@@ -408,7 +637,7 @@ Write Back（写回）策略在更新数据的时候，只更新缓存，同时�
 
 ### 数据库和缓存一致性
 
-入了缓存，那么在数据更新时，不仅要更新数据库，而且要更新缓存。
+有了缓存，那么在数据更新时，不仅要更新数据库，而且要更新缓存。
 
 无论是「先更新数据库，再更新缓存」，还是「先更新缓存，再更新数据库」，这两个方案都存在并发问题，当两个请求并发更新同一条数据的时候，可能会出现缓存和数据库中的数据不一致的现象。
 
@@ -429,7 +658,7 @@ Write Back（写回）策略在更新数据的时候，只更新缓存，同时�
 
 引入**消息队列**，将第二个操作（删除缓存）要操作的数据加入到消息队列，由消费者来操作数据。如果应用**删除缓存失败**，可以从消息队列中重新读取数据，然后再次删除缓存。如果**删除缓存成功**，就要把数据从消息队列中移除。
 
-「**先更新数据库，再删缓存**」的策略的第一步是更新数据库，那么更新数据库成功，就会产生一条变更日志，记录在 binlog 里。通过订阅 binlog 日志，拿到具体要操作的数据，然后再执行缓存删除
+「**先更新数据库，再删缓存**」的策略的第一步是更新数据库，那么更新数据库成功，就会产生一条变更日志，记录在 binlog 里。通过订阅 binlog 日志，拿到具体要操作的数据，然后再执行缓存删除9
 
 ## Redis实战
 
@@ -461,3 +690,83 @@ Redis 如何解决集群情况下分布式锁的可靠性？
 **Redis 主从复制模式中的数据是异步复制的，这样导致分布式锁的不可靠性**。如果在 Redis 主节点获取到锁后，在没有同步到其他节点时，Redis 主节点宕机了，此时新的 Redis 主节点依然可以获取锁，所以多个应用服务就可以同时获取到锁。
 
 Redis 官方已经设计了一个分布式锁算法 Redlock（红锁）。Redlock 算法的基本思路，是让客户端和多个独立的 Redis 节点依次请求申请加锁，如果客户端能够和半数以上的节点成功地完成加锁操作，那么我们就认为，客户端成功地获得分布式锁，否则加锁失败。加锁成功要同时满足两个条件（*简述：如果有超过半数的 Redis 节点成功的获取到了锁，并且总耗时没有超过锁的有效时间，那么就是加锁成功*）
+
+**实现**
+
+~~~java
+//实现一，直接在查询数据前进行加锁
+//缺点：可能业务执行完锁还未过期。
+//相当于set key value EX time NX
+Boolean isLockSuccess = redisUtil.setIfAbsent(redisLockKey, null, 90L); 
+if (isLockSuccess) { 
+    // 加锁成功可以访问数据库 
+    article = articleDao.queryArticleDetail(articleId); 
+} else { 
+    try { 
+        // 短暂睡眠，为了让拿到锁的线程有时间访问数据库拿到数据后set进缓存， 
+        Thread.sleep(200); 
+    } catch (InterruptedException e) {
+        e.printStackTrace(); 
+    } 
+    // 加锁失败采用自旋方式重新拿取数据 
+    this.queryDetailArticleInfo(articleId); 
+}
+//实现二，增加了finally及时删除key解决一中缺点
+//缺点：A线程获取锁的时间过期了，B获取了锁。但A执行完后finally中又释放了B的锁
+Boolean isLockSuccess = redisUtil.setIfAbsent(redisLockKey, null, 90L); 
+if (isLockSuccess) { 
+    article = articleDao.queryArticleDetail(articleId); 
+} else { 
+    try { 
+        Thread.sleep(200); 
+         this.queryDetailArticleInfo(articleId);
+    } catch (InterruptedException e) {
+        e.printStackTrace(); 
+    } finally{
+        //增加了finally及时删除key
+        RedisClient.del(redisLockKey);
+    }
+}
+//实现三，加锁时设置value，不再是null，释放锁是判断与加锁时的value是否相同
+//缺点：过期时间无法确定
+String value = RandomUtil.randomString(6);
+Boolean isLockSuccess = redisUtil.setIfAbsent(redisLockKey, value, 90L); 
+if (isLockSuccess) { 
+    article = articleDao.queryArticleDetail(articleId); 
+} else { 
+    try { 
+        Thread.sleep(200); 
+         this.queryDetailArticleInfo(articleId);
+    } catch (InterruptedException e) {
+        e.printStackTrace(); 
+    } finally{
+        // 这种先get出value，然后再比较删除；这无法保证原子性，为了保证原子性，采用了lua脚本 
+        /* String redisLockValue = RedisClient.getStr(redisLockKey); 
+        if (!ObjectUtils.isEmpty(redisLockValue) && StringUtils.equals(value, redisLockValue)) { 			              RedisClient.del(redisLockKey); } */ 
+        // 采用lua脚本来进行先判断，再删除；和上面的这种方式相比保证了原子性 
+        Long cad = redisLuaUtil.cad("pai_" + redisLockKey, value); 
+        log.info("lua 脚本删除结果：" + cad);
+    }
+}
+//实现四，写守护线程，每隔一段时间查看业务是否执行完毕(看门狗技术)
+//实现上述技术的实现redission
+RLock lock = redissonClient.getLock(redisLockKey);
+try{
+    //尝试加锁,最大等待时间3秒，上锁30秒自动解锁；时间结合自身而定
+    if(lock.tryLock(3,30,TimeUnit.SECONDS)){
+        article = articleDao.queryArticleDetail(articleId); 
+    }else{
+        // 未获得分布式锁线程睡眠一下；然后再去获取数据
+        Thread.sleep(200); 
+        this.queryDetailArticleInfo(articleId);
+    }
+}catch (InterruptedException e) {
+        e.printStackTrace(); 
+} finally{
+    //判断该lock是否已经锁 并且锁是否是自己的 
+    if (lock.isLocked() && lock.isHeldByCurrentThread()) { 
+        lock.unlock(); 
+    }
+}
+~~~
+
