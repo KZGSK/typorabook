@@ -38,6 +38,20 @@ AbstractRefreshableApplicationContext：在此定义了beanFactory工厂字段�
 
 输入xml的地址后，由refresh()方法进行整个流程。
 
+流程的各部分作用：
+
+BeanFactoryPostProcessors作用是修改beandefinition
+
+InstantiationAwareBeanPostProcessor在实例化bean之前和之后进行自定义处理的接口。实例化之前可以返回一个实例的对象来跳过实例化初始化过程，可以用来创建代理类。实例化之后执行可以对实例化的bean进行自定义处理。PropertyValues方法可以在属性注入只求修改bean的属性值。
+
+设置属性：解析xml和注解的属性注入
+
+BeanPostProcessor前置处理：通常用于执行一些初始化前的逻辑，例如：验证、属性设置、数据加载等。
+
+BeanPostProcessor后置处理：初始化之后的验证、注册、清理等，一般情况下在这里生成代理对象
+
+初始化init-method：
+
 BeanDefinition：用来描述或定义一个被Spring容器所创建、管理和维护的Bean（也就是对象）。包含了类名、作用域（Singleton、Prototype等）、生命周期、回调方法如初始化方法和销毁方法）、依赖关系、属性值。通常由BeanFactory接口的实现类（如XmlBeanFactory、AnnotationConfigApplicationContext等）根据配置文件或其他方式来解析和创建。
 
 ####创建bean工厂
@@ -107,6 +121,8 @@ BeanFactoryAware：提供setBeanFactory方法，使其可以感知BeanFactory。
 ApplicationEventMulticaster：添加/移除监听者，multicastEvent遍历监听者若对事件感兴趣就相应该事件。发布事件就是调用广播的multicastEvent方法。返回监听者的onApplicationEvent方法的具体响应。
 
 ## AOP
+
+![image-20240323162929548](../image/image-20240323162929548.png)
 
 AOP（Aspect-Oriented Programming）是一种编程范式，面向切面编程。把我们程序重复的代码抽取出来，在需要执行的时候使用动态代理技术在不修改源码的基础上，对我们的已有方法进行增强。
 
